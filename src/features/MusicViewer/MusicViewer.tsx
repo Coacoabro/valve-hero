@@ -3,13 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { OpenSheetMusicDisplay, IOSMDOptions } from "opensheetmusicdisplay";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw } from "lucide-react";
 
 export default function MusicViewer() {
 
     const containerRef = useRef<HTMLDivElement>(null);
     const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
     const cursorRef = useRef<HTMLDivElement>(null);
+
+    const [isPlaying, setIsPlaying] = useState(false);
+    const playbackRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const [bpm, setBPM] = useState(80)
 
     useEffect(() => {
 
@@ -67,21 +72,85 @@ export default function MusicViewer() {
         updateCursor(osmd)
     }
 
+    const play = () => {
+        if (isPlaying) return;
+        
+        setIsPlaying(true)
+    
+        const playNextNote = () => {
+            const osmd = osmdRef.current
+            if(!osmd || !osmd.cursor) return
+
+            const currentEntry = osmd.cursor.Iterator.CurrentVoiceEntries[0]
+
+            if(!currentEntry) {
+                osmd.cursor.next()
+                playNextNote()
+                return
+            }
+
+            const firstNote = currentEntry.Notes[0]
+
+            let delay = 0
+            const msPerBeat = (60000 / bpm)
+
+            if (firstNote.IsGraceNote) {
+                
+                const secondNote = osmd.cursor.Iterator.CurrentVoiceEntries[1].Notes[0]
+                delay = msPerBeat * (secondNote.Length.RealValue * 4)
+            } else {
+                delay = msPerBeat * (firstNote.Length.RealValue * 4)
+            }
+
+            playbackRef.current = setTimeout(() => {
+                osmd.cursor.next()
+                updateCursor(osmd)
+                if(osmd.cursor.Iterator.EndReached) {
+                    setIsPlaying(false)
+                } else {
+                    playNextNote()
+                }
+            }, delay)
+        }
+
+        playNextNote()
+    }
+
+    const pause = () => {
+        if (!isPlaying) return
+        setIsPlaying(false)
+
+        if (playbackRef.current) {
+            clearInterval(playbackRef.current)
+            playbackRef.current = null
+        }
+    }
+
     return (
-        <div className="space-y-4 justify-center flex">
+        <div className="space-y-4">
+            
             <div className="absolute right-25 top-200">
-                <Button onClick={backward}>
-                    <ChevronLeft size={24} />
-                </Button>
-                <Button onClick={reset}>
-                    <RotateCcw />
-                </Button>
-                <Button onClick={forward}>
-                    <ChevronRight size={24} />
-                </Button>
+                    <Button onClick={backward}>
+                        <ChevronLeft size={24} />
+                    </Button>
+                    <Button onClick={reset}>
+                        <RotateCcw />
+                    </Button>
+                    {isPlaying ? (
+                        <Button onClick={pause}>
+                            <Pause />
+                        </Button>
+                    ) : (
+                        <Button onClick={play}>
+                            <Play />
+                        </Button>
+                    )}
+                    <Button onClick={forward}>
+                        <ChevronRight size={24} />
+                    </Button>
             </div>
             
-            <div className="border rounded-xl relative max-w-5xl" >
+            <div className="border rounded-xl relative max-w-5xl mx-auto" >
                 <div 
                     ref={cursorRef}
                     className="absolute w-1 h-4 bg-red-500 z-50 transition-transform duration-200 left-0 top-0"
