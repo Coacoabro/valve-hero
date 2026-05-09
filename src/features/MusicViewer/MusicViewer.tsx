@@ -14,7 +14,7 @@ export default function MusicViewer() {
     const [isPlaying, setIsPlaying] = useState(false);
     const playbackRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    const [bpm, setBPM] = useState(80)
+    const [bpm, setBPM] = useState(0)
 
     useEffect(() => {
 
@@ -27,9 +27,14 @@ export default function MusicViewer() {
 
             osmdRef.current.load("/Trumpet.musicxml").then(() => {
                 osmdRef.current?.render();
+                if (!bpm) {
+                    setBPM(osmdRef.current?.Sheet.SourceMeasures[0].TempoInBPM || 100)
+                }
                 updateCursor(osmdRef.current)
             });
         };
+
+        
 
     }, []);
 
@@ -129,7 +134,20 @@ export default function MusicViewer() {
     return (
         <div className="space-y-4">
             
-            <div className="absolute right-25 top-200">
+            <div className="absolute right-25 top-100">
+                <div>
+                    <label>Tempo: {bpm}BPM</label>
+                    <input
+                        type="range"
+                        min="20"
+                        max="240"
+                        value={bpm}
+                        onChange={(e) => {
+                            setBPM(parseInt(e.target.value, 10))
+                        }}
+                    />
+                </div>
+                <div>
                     <Button onClick={backward}>
                         <ChevronLeft size={24} />
                     </Button>
@@ -148,6 +166,8 @@ export default function MusicViewer() {
                     <Button onClick={forward}>
                         <ChevronRight size={24} />
                     </Button>
+                </div>
+                
             </div>
             
             <div className="border rounded-xl relative max-w-5xl mx-auto" >
